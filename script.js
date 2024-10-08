@@ -6,6 +6,171 @@ const canvas = new fabric.Canvas('canvas', {
     height: 900
 });
 
+// Créer une barre d'outils pour les objets texte
+const toolbar = document.createElement('div');
+toolbar.id = 'text-toolbar';
+toolbar.style.position = 'absolute';
+toolbar.style.display = 'none';
+toolbar.style.padding = '10px';
+toolbar.style.backgroundColor = '#fff';
+toolbar.style.border = '1px solid #ccc';
+toolbar.style.borderRadius = '5px';
+toolbar.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)';
+toolbar.innerHTML = `
+    <label>Taille: <input type="number" id="text-size-input" value="20" min="10" max="100" style="width: 50px;"></label>
+    <label>Couleur: <input type="color" id="text-color-input" value="#000000"></label>
+    <label>Police: 
+        <select id="text-font-family">
+            <option value="Arial">Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Times New Roman">Times New Roman</option>
+        </select>
+    </label>
+    <label>Épaisseur: 
+        <select id="text-font-weight">
+            <option value="normal">Normal</option>
+            <option value="bold">Gras</option>
+        </select>
+    </label>
+    <button id="delete-text-btn">Supprimer</button>
+`;
+document.body.appendChild(toolbar);
+
+// Fonction pour mettre à jour la position de la barre d'outils pour le texte
+function updateToolbarPosition(object) {
+    if (object && object.getBoundingRect) {
+        const boundingBox = object.getBoundingRect();
+        toolbar.style.left = `${boundingBox.left + canvas._offset.left}px`;
+        toolbar.style.top = `${boundingBox.top - 50 + canvas._offset.top}px`; // Placer la barre au-dessus de l'objet
+        toolbar.style.display = 'block'; // Assurer que la barre est visible
+    } else {
+        console.error("Objet non défini ou méthode getBoundingRect indisponible");
+    }
+}
+
+// Activer la barre d'outils uniquement pour les zones de texte
+canvas.on('selection:created', (e) => {
+    const activeObject = e.target;
+    
+    // Vérifier si l'objet est un texte (fabric.IText)
+    if (activeObject && activeObject.type === 'i-text') {
+        updateToolbarPosition(activeObject);
+        
+        // Mettre à jour les valeurs dans la barre d'outils
+        document.getElementById('text-size-input').value = activeObject.fontSize || 20;
+        document.getElementById('text-color-input').value = activeObject.fill || '#000000';
+        document.getElementById('text-font-family').value = activeObject.fontFamily || 'Arial';
+        document.getElementById('text-font-weight').value = activeObject.fontWeight || 'normal'; // Ajout pour épaisseur
+    } else {
+        toolbar.style.display = 'none'; // Masquer la barre si ce n'est pas un texte
+    }
+});
+
+// Mise à jour de la position de la barre d'outils lorsque l'objet texte est déplacé ou redimensionné
+canvas.on('object:moving', (e) => {
+    if (e.target && e.target.type === 'i-text') {
+        updateToolbarPosition(e.target);
+    }
+});
+canvas.on('object:scaling', (e) => {
+    if (e.target && e.target.type === 'i-text') {
+        updateToolbarPosition(e.target);
+    }
+});
+canvas.on('selection:updated', (e) => {
+    const activeObject = e.target;
+    if (activeObject && activeObject.type === 'i-text') {
+        updateToolbarPosition(activeObject);
+    } else {
+        toolbar.style.display = 'none'; // Masquer la barre si ce n'est pas un texte
+    }
+});
+
+// Masquer la barre d'outils lorsque rien n'est sélectionné
+canvas.on('selection:cleared', () => {
+    toolbar.style.display = 'none';
+});
+
+// Modification des propriétés du texte à partir de la barre d'outils
+document.getElementById('text-size-input').addEventListener('input', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontSize', parseInt(e.target.value));
+        canvas.renderAll();
+    }
+});
+
+document.getElementById('text-color-input').addEventListener('input', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fill', e.target.value);
+        canvas.renderAll();
+    }
+});
+
+document.getElementById('text-font-family').addEventListener('change', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontFamily', e.target.value);
+        canvas.renderAll();
+    }
+});
+
+// Ajout de l'événement pour l'épaisseur
+document.getElementById('text-font-weight').addEventListener('change', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontWeight', e.target.value);
+        canvas.renderAll();
+    }
+});
+
+// Supprimer le texte via la barre d'outils
+document.getElementById('delete-text-btn').addEventListener('click', () => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        canvas.remove(activeObject);
+        toolbar.style.display = 'none';
+        canvas.renderAll();
+    }
+});
+
+// Ajouter une zone de texte modifiable dans le canevas
+const addTextBtn = document.querySelector("#add-text-btn");
+
+addTextBtn.addEventListener('click', () => {
+    // Créer un élément texte modifiable de type fabric.IText
+    const text = new fabric.IText('Entrez votre texte', {
+        left: 150,
+        top: 100,
+        fontSize: 20,
+        fontFamily: 'Arial',
+        fill: '#000000',
+        editable: true,
+        selectable: true, // Rendre le texte déplaçable et redimensionnable
+    });
+
+    // Ajouter le texte modifiable au canevas
+    canvas.add(text);
+    canvas.setActiveObject(text); // Sélectionner automatiquement le texte pour l'édition
+    canvas.renderAll();
+});
+
+// Supprimer l'objet sélectionné via le bouton
+const deleteObjectBtn = document.querySelector("#delete-object");
+deleteObjectBtn.addEventListener("click", () => {
+    const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
+    if (activeObject) {
+        canvas.remove(activeObject); // Supprimer l'objet du canevas
+        toolbar.style.display = 'none'; // Masquer la barre d'outils si un objet est supprimé
+        canvas.renderAll(); // Re-rendre le canevas après la suppression
+    } else {
+        alert("Aucun objet sélectionné !");
+    }
+});
+
+// Gestion des formes et autres fonctionnalités
+
 // Sélectionner la case à cocher pour remplir les formes
 const fillColorCheckbox = document.getElementById('fill-color');
 
@@ -199,62 +364,13 @@ uploadImageInput.addEventListener("change", (e) => {
     reader.readAsDataURL(file);
 });
 
-// Ajouter une zone de texte avec propriétés personnalisées
-const addTextBtn = document.querySelector("#add-text-btn");
-const textModal = document.querySelector("#text-modal");
-const addTextToCanvasBtn = document.querySelector("#add-text-to-canvas");
-const textContentInput = document.querySelector("#text-content");
-const fontSizeInput = document.querySelector("#font-size");
-const fontFamilySelect = document.querySelector("#font-family");
-const fontWeightSelect = document.querySelector("#font-weight");
-const textColorInput = document.querySelector("#text-color");
-
-addTextBtn.addEventListener('click', () => {
-    textModal.style.display = 'block'; // Afficher la modale pour ajouter du texte
-});
-
-// Ajouter le texte au canevas
-addTextToCanvasBtn.addEventListener('click', () => {
-    const textContent = textContentInput.value;
-    const fontSize = fontSizeInput.value;
-    const fontFamily = fontFamilySelect.value;
-    const fontWeight = fontWeightSelect.value;
-    const textColor = textColorInput.value;
-
-    const newText = new fabric.Text(textContent, {
-        left: 150,
-        top: 100,
-        fontSize: parseInt(fontSize),
-        fontFamily: fontFamily,
-        fontWeight: fontWeight,
-        fill: textColor,
-        selectable: true, // Rendre le texte déplaçable et redimensionnable
-    });
-
-    canvas.add(newText);
-    canvas.renderAll();
-    textModal.style.display = 'none'; // Fermer la modale après ajout
-});
-
-// Supprimer l'objet sélectionné via le bouton
-const deleteObjectBtn = document.querySelector("#delete-object");
-deleteObjectBtn.addEventListener("click", () => {
-    const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
-
-    if (activeObject) {
-        canvas.remove(activeObject); // Supprimer l'objet du canevas
-        canvas.renderAll(); // Re-rendre le canevas après la suppression
-    } else {
-        alert("Aucun objet sélectionné !");
-    }
-});
-
 // Supprimer l'objet sélectionné en appuyant sur la touche "Supprimer" du clavier
 document.addEventListener('keydown', (event) => {
-    if (event.key === 'Delete' || event.key === 'Backspace') { // Détecter "Supprimer" ou "Backspace"
+    if (event.key === 'Delete') { // Ne plus détecter la touche "Backspace"
         const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
         if (activeObject) {
             canvas.remove(activeObject); // Supprimer l'objet du canevas
+            toolbar.style.display = 'none'; // Cacher la barre d'outils après suppression
             canvas.renderAll(); // Re-rendre le canevas après la suppression
         }
     }

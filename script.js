@@ -474,3 +474,69 @@ function updateRulerShapeLength(ruler, rulerText) {
 
 // Ajouter la règle comme forme sur le canevas
 document.getElementById('add-ruler').addEventListener('click', addRulerShape);
+
+
+// Fonction pour ajouter un tableau sur le canevas
+function addTable(rows = 3, cols = 3) {
+    const tableGroup = new fabric.Group([], {
+        selectable: true,
+        hasBorders: true,
+        hasControls: true,
+        left: 150,
+        top: 100
+    });
+
+    const cellWidth = 60;
+    const cellHeight = 30;
+
+    // Créer le tableau
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            // Créer une cellule
+            const cell = new fabric.Rect({
+                left: col * cellWidth,
+                top: row * cellHeight,
+                width: cellWidth,
+                height: cellHeight,
+                fill: 'transparent',
+                stroke: 'black',
+                strokeWidth: 1,
+                selectable: false
+            });
+
+            // Créer le texte de la cellule
+            const cellText = new fabric.Textbox('', {
+                left: col * cellWidth + 5,
+                top: row * cellHeight + 5,
+                fontSize: 12,
+                width: cellWidth - 10,
+                height: cellHeight - 10,
+                selectable: true,
+                editable: true,
+                textAlign: 'center'
+            });
+
+            // Ajouter la cellule et le texte au groupe
+            tableGroup.addWithUpdate(cell);
+            tableGroup.addWithUpdate(cellText);
+        }
+    }
+
+    // Ajouter le groupe de tableau au canevas
+    canvas.add(tableGroup);
+    canvas.setActiveObject(tableGroup);
+    canvas.renderAll();
+}
+
+// Écouteur d'événement pour le bouton d'ajout de tableau
+document.getElementById('add-table-btn').addEventListener('click', () => {
+    // Demander le nombre de lignes et de colonnes
+    const rows = parseInt(prompt("Nombre de lignes ?", "3"), 10);
+    const cols = parseInt(prompt("Nombre de colonnes ?", "3"), 10);
+
+    if (!isNaN(rows) && !isNaN(cols) && rows > 0 && cols > 0) {
+        addTable(rows, cols);
+    } else {
+        alert("Veuillez entrer des valeurs valides pour les lignes et les colonnes.");
+    }
+});

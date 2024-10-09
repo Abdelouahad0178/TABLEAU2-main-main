@@ -262,3 +262,18 @@ section {
         width: 250px;
     }
 }
+
+#add-table-btn {
+    padding: 20px;
+    font-size: 1.2rem;
+    background: #4A98F7;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+#add-table-btn:hover {
+    background: #6C757D;
+}

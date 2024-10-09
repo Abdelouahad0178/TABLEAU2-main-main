@@ -3,143 +3,186 @@ const canvas = new fabric.Canvas('canvas', {
     isDrawingMode: false,
     backgroundColor: 'white',
     width: 1130,
-    height: 900
+    height: 1220
 });
 
-// Créer une barre d'outils pour les objets texte
-const toolbar = document.createElement('div');
-toolbar.id = 'text-toolbar';
-toolbar.style.position = 'absolute';
-toolbar.style.display = 'none';
-toolbar.style.padding = '10px';
-toolbar.style.backgroundColor = '#fff';
-toolbar.style.border = '1px solid #ccc';
-toolbar.style.borderRadius = '5px';
-toolbar.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)';
-toolbar.innerHTML = `
-    <label>Taille: <input type="number" id="text-size-input" value="20" min="10" max="100" style="width: 50px;"></label>
-    <label>Couleur: <input type="color" id="text-color-input" value="#000000"></label>
-    <label>Police: 
-        <select id="text-font-family">
-            <option value="Arial">Arial</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Times New Roman">Times New Roman</option>
-        </select>
-    </label>
-    <label>Épaisseur: 
-        <select id="text-font-weight">
-            <option value="normal">Normal</option>
-            <option value="bold">Gras</option>
-        </select>
-    </label>
-    <button id="delete-text-btn">Supprimer</button>
-`;
-document.body.appendChild(toolbar);
+// Variables pour convertir les pixels en centimètres
+const pixelsPerCm = 37.7952755906; // Conversion de pixels à centimètres
 
-// Fonction pour mettre à jour la position de la barre d'outils pour le texte
-function updateToolbarPosition(object) {
-    if (object && object.getBoundingRect) {
-        const boundingBox = object.getBoundingRect();
-        toolbar.style.left = `${boundingBox.left + canvas._offset.left}px`;
-        toolbar.style.top = `${boundingBox.top - 50 + canvas._offset.top}px`; // Placer la barre au-dessus de l'objet
-        toolbar.style.display = 'block'; // Assurer que la barre est visible
-    } else {
-        console.error("Objet non défini ou méthode getBoundingRect indisponible");
-    }
+// Fonction pour ajouter une règle comme forme
+function addRulerShape() {
+    const ruler = new fabric.Line([100, 100, 400, 100], {
+        stroke: 'black',
+        strokeWidth: 3,
+        selectable: true,
+        hasBorders: true,
+        hasControls: true,
+        originX: 'center',
+        originY: 'center'
+    });
+
+    const rulerText = new fabric.Text('0 cm', {
+        fontSize: 14,
+        fill: 'black',
+        selectable: false,
+        originX: 'center',
+        originY: 'center'
+    });
+
+    canvas.add(ruler);
+    canvas.add(rulerText);
+    updateRulerShapeLength(ruler, rulerText);
+
+    // Mettre à jour la longueur lors de la modification
+    ruler.on('modified', () => updateRulerShapeLength(ruler, rulerText));
+    ruler.on('moving', () => updateRulerShapeLength(ruler, rulerText));
+    ruler.on('scaling', () => updateRulerShapeLength(ruler, rulerText));
+
+    // Supprimer le texte de mesure lorsque la règle est supprimée
+    ruler.on('removed', () => {
+        canvas.remove(rulerText);
+    });
 }
 
-// Activer la barre d'outils uniquement pour les zones de texte
-canvas.on('selection:created', (e) => {
-    const activeObject = e.target;
-    
-    // Vérifier si l'objet est un texte (fabric.IText)
-    if (activeObject && activeObject.type === 'i-text') {
-        updateToolbarPosition(activeObject);
-        
-        // Mettre à jour les valeurs dans la barre d'outils
-        document.getElementById('text-size-input').value = activeObject.fontSize || 20;
-        document.getElementById('text-color-input').value = activeObject.fill || '#000000';
-        document.getElementById('text-font-family').value = activeObject.fontFamily || 'Arial';
-        document.getElementById('text-font-weight').value = activeObject.fontWeight || 'normal'; // Ajout pour épaisseur
+// Fonction pour mettre à jour la longueur de la règle et repositionner le texte
+function updateRulerShapeLength(ruler, rulerText) {
+    const start = ruler.calcLineCoords();
+    const lengthInPixels = Math.sqrt(
+        Math.pow(start.x2 - start.x1, 2) + Math.pow(start.y2 - start.y1, 2)
+    );
+
+    const lengthInCm = lengthInPixels / pixelsPerCm;
+    if (lengthInCm >= 100) {
+        const lengthInMeters = (lengthInCm / 100).toFixed(2);
+        rulerText.set({ text: `${lengthInMeters} m` });
     } else {
-        toolbar.style.display = 'none'; // Masquer la barre si ce n'est pas un texte
+        rulerText.set({ text: `${lengthInCm.toFixed(2)} cm` });
     }
+
+    // Positionner le texte au milieu de la règle
+    const newLeft = (start.x1 + start.x2) / 2;
+    const newTop = (start.y1 + start.y2) / 2 - 10;
+    rulerText.set({
+        left: newLeft,
+        top: newTop,
+        originX: 'center',
+        originY: 'center',
+        angle: ruler.angle
+    });
+
+    // Mettre à jour le canevas
+    canvas.bringToFront(rulerText);
+    canvas.renderAll();
+}
+
+// Fonction pour ajouter les mesures d'une forme
+function addShapeMeasurements(shape) {
+    const measurementText = new fabric.Text('', {
+        fontSize: 14,
+        fill: 'black',
+        selectable: false,
+        originX: 'center',
+        originY: 'center'
+    });
+    canvas.add(measurementText);
+    updateShapeMeasurements(shape, measurementText);
+
+    // Associer le texte de mesure à la forme
+    shape.measurementText = measurementText;
+
+    // Mettre à jour les mesures lors de la modification de la forme
+    shape.on('modified', () => updateShapeMeasurements(shape, measurementText));
+    shape.on('scaling', () => updateShapeMeasurements(shape, measurementText));
+    shape.on('moving', () => updateShapeMeasurements(shape, measurementText));
+
+    // Supprimer le texte de mesure lorsque la forme est supprimée
+    shape.on('removed', () => {
+        canvas.remove(measurementText);
+    });
+}
+
+// Fonction pour mettre à jour les mesures de la forme
+function updateShapeMeasurements(shape, measurementText) {
+    let measurements = '';
+    if (shape.type === 'rect') {
+        const width = (shape.getScaledWidth() / pixelsPerCm).toFixed(2);
+        const height = (shape.getScaledHeight() / pixelsPerCm).toFixed(2);
+        measurements = `L: ${width} cm, H: ${height} cm`;
+    } else if (shape.type === 'circle') {
+        const radius = (shape.radius * shape.scaleX / pixelsPerCm).toFixed(2);
+        const diameter = (2 * shape.radius * shape.scaleX / pixelsPerCm).toFixed(2);
+        measurements = `R: ${radius} cm, D: ${diameter} cm`;
+    } else if (shape.type === 'triangle') {
+        const a = (shape.width * shape.scaleX / pixelsPerCm).toFixed(2);
+        const b = (shape.height * shape.scaleY / pixelsPerCm).toFixed(2);
+        const c = (Math.sqrt(Math.pow(shape.width, 2) + Math.pow(shape.height, 2)) * shape.scaleX / pixelsPerCm).toFixed(2);
+        measurements = `Côtés: A: ${a} cm, B: ${b} cm, C: ${c} cm`;
+    }
+    measurementText.set({
+        text: measurements,
+        left: shape.left,
+        top: shape.top - 20
+    });
+    canvas.bringToFront(measurementText);
+    canvas.renderAll();
+}
+
+// Ajout des événements pour les boutons de formes
+document.getElementById('rectangle').addEventListener('click', () => {
+    const rect = new fabric.Rect({
+        width: 100,
+        height: 100,
+        left: 150,
+        top: 100,
+        fill: 'transparent',
+        stroke: 'black',
+        strokeWidth: 2
+    });
+    canvas.add(rect);
+    addShapeMeasurements(rect);
 });
 
-// Mise à jour de la position de la barre d'outils lorsque l'objet texte est déplacé ou redimensionné
-canvas.on('object:moving', (e) => {
-    if (e.target && e.target.type === 'i-text') {
-        updateToolbarPosition(e.target);
-    }
-});
-canvas.on('object:scaling', (e) => {
-    if (e.target && e.target.type === 'i-text') {
-        updateToolbarPosition(e.target);
-    }
-});
-canvas.on('selection:updated', (e) => {
-    const activeObject = e.target;
-    if (activeObject && activeObject.type === 'i-text') {
-        updateToolbarPosition(activeObject);
-    } else {
-        toolbar.style.display = 'none'; // Masquer la barre si ce n'est pas un texte
-    }
+document.getElementById('circle').addEventListener('click', () => {
+    const circle = new fabric.Circle({
+        radius: 50,
+        left: 150,
+        top: 100,
+        fill: 'transparent',
+        stroke: 'black',
+        strokeWidth: 2
+    });
+    canvas.add(circle);
+    addShapeMeasurements(circle);
 });
 
-// Masquer la barre d'outils lorsque rien n'est sélectionné
-canvas.on('selection:cleared', () => {
-    toolbar.style.display = 'none';
+document.getElementById('triangle').addEventListener('click', () => {
+    const triangle = new fabric.Triangle({
+        width: 100,
+        height: 100,
+        left: 150,
+        top: 100,
+        fill: 'transparent',
+        stroke: 'black',
+        strokeWidth: 2
+    });
+    canvas.add(triangle);
+    addShapeMeasurements(triangle);
 });
 
-// Modification des propriétés du texte à partir de la barre d'outils
-document.getElementById('text-size-input').addEventListener('input', (e) => {
-    const activeObject = canvas.getActiveObject();
-    if (activeObject && activeObject.type === 'i-text') {
-        activeObject.set('fontSize', parseInt(e.target.value));
-        canvas.renderAll();
-    }
+// Ajouter la règle comme forme sur le canevas
+document.getElementById('add-ruler').addEventListener('click', addRulerShape);
+
+// Effacer le canevas
+const clearCanvas = document.querySelector(".clear-canvas");
+clearCanvas.addEventListener("click", () => {
+    canvas.clear();
+    canvas.backgroundColor = 'white';
+    canvas.renderAll();
 });
 
-document.getElementById('text-color-input').addEventListener('input', (e) => {
-    const activeObject = canvas.getActiveObject();
-    if (activeObject && activeObject.type === 'i-text') {
-        activeObject.set('fill', e.target.value);
-        canvas.renderAll();
-    }
-});
-
-document.getElementById('text-font-family').addEventListener('change', (e) => {
-    const activeObject = canvas.getActiveObject();
-    if (activeObject && activeObject.type === 'i-text') {
-        activeObject.set('fontFamily', e.target.value);
-        canvas.renderAll();
-    }
-});
-
-// Ajout de l'événement pour l'épaisseur
-document.getElementById('text-font-weight').addEventListener('change', (e) => {
-    const activeObject = canvas.getActiveObject();
-    if (activeObject && activeObject.type === 'i-text') {
-        activeObject.set('fontWeight', e.target.value);
-        canvas.renderAll();
-    }
-});
-
-// Supprimer le texte via la barre d'outils
-document.getElementById('delete-text-btn').addEventListener('click', () => {
-    const activeObject = canvas.getActiveObject();
-    if (activeObject && activeObject.type === 'i-text') {
-        canvas.remove(activeObject);
-        toolbar.style.display = 'none';
-        canvas.renderAll();
-    }
-});
-
-// Ajouter une zone de texte modifiable dans le canevas
+// Fonction pour ajouter du texte
 const addTextBtn = document.querySelector("#add-text-btn");
-
 addTextBtn.addEventListener('click', () => {
-    // Créer un élément texte modifiable de type fabric.IText
     const text = new fabric.IText('Entrez votre texte', {
         left: 150,
         top: 100,
@@ -147,182 +190,111 @@ addTextBtn.addEventListener('click', () => {
         fontFamily: 'Arial',
         fill: '#000000',
         editable: true,
-        selectable: true, // Rendre le texte déplaçable et redimensionnable
+        selectable: true
     });
-
-    // Ajouter le texte modifiable au canevas
     canvas.add(text);
-    canvas.setActiveObject(text); // Sélectionner automatiquement le texte pour l'édition
+    canvas.setActiveObject(text);
     canvas.renderAll();
 });
 
-// Supprimer l'objet sélectionné via le bouton
+// Supprimer l'objet sélectionné
 const deleteObjectBtn = document.querySelector("#delete-object");
 deleteObjectBtn.addEventListener("click", () => {
-    const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
+    const activeObject = canvas.getActiveObject();
     if (activeObject) {
-        canvas.remove(activeObject); // Supprimer l'objet du canevas
-        toolbar.style.display = 'none'; // Masquer la barre d'outils si un objet est supprimé
-        canvas.renderAll(); // Re-rendre le canevas après la suppression
+        canvas.remove(activeObject);
+        canvas.renderAll();
     } else {
         alert("Aucun objet sélectionné !");
     }
 });
-
-// Gestion des formes et autres fonctionnalités
-
-// Sélectionner la case à cocher pour remplir les formes
-const fillColorCheckbox = document.getElementById('fill-color');
 
 // Créer un bouton de duplication dynamiquement
 const duplicateBtn = document.createElement('button');
 duplicateBtn.innerHTML = '+';
 duplicateBtn.classList.add('duplicate-btn');
 document.body.appendChild(duplicateBtn);
-
-// Masquer le bouton de duplication par défaut
-duplicateBtn.style.display = 'none';
+duplicateBtn.style.display = 'none'; // Masquer le bouton de duplication par défaut
 
 // Fonction pour dupliquer un objet
 duplicateBtn.addEventListener('click', () => {
-    const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
+    const activeObject = canvas.getActiveObject();
     if (activeObject) {
-        // Dupliquer l'objet sélectionné
         activeObject.clone(function(clonedObj) {
             clonedObj.set({
-                left: activeObject.left + 30, // Décaler légèrement la position de la copie
-                top: activeObject.top + 30,   // Décaler légèrement la position de la copie
-                evented: true // Permettre l'interaction avec la copie
+                left: activeObject.left + 30,
+                top: activeObject.top + 30,
+                evented: true
             });
-            canvas.add(clonedObj); // Ajouter la copie sur le canevas
-            canvas.setActiveObject(clonedObj); // Sélectionner la copie
-            canvas.renderAll(); // Re-rendre le canevas après la duplication
+            canvas.add(clonedObj);
+            canvas.setActiveObject(clonedObj);
+            if (clonedObj.type !== 'line') {
+                addShapeMeasurements(clonedObj); // Ajouter les mesures à la copie
+            } else {
+                addRulerShape(clonedObj); // Ajouter les mesures pour la règle
+            }
+            canvas.renderAll();
         });
     }
-    hideDuplicateButton(); // Masquer le bouton après duplication
+    hideDuplicateButton();
 });
 
-// Fonction pour afficher le bouton "+" sous l'objet sélectionné
+// Afficher le bouton "+" quand un objet est sélectionné
 function showDuplicateButton() {
-    const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
+    const activeObject = canvas.getActiveObject();
     if (activeObject) {
-        const boundingRect = activeObject.getBoundingRect(); // Obtenir les dimensions de l'objet sélectionné
+        const boundingRect = activeObject.getBoundingRect();
         const objectLeft = activeObject.left + canvas._offset.left + boundingRect.width / 2;
         const objectTop = activeObject.top + boundingRect.height + canvas._offset.top;
-
-        // Positionner le bouton en dessous de l'objet sélectionné
         duplicateBtn.style.left = `${objectLeft}px`;
         duplicateBtn.style.top = `${objectTop}px`;
-        duplicateBtn.style.display = 'block'; // Afficher le bouton
+        duplicateBtn.style.display = 'block';
     }
 }
 
-// Fonction pour masquer le bouton "+"
+// Masquer le bouton "+"
 function hideDuplicateButton() {
     duplicateBtn.style.display = 'none';
 }
 
-// Afficher le bouton "+" quand un objet est sélectionné
 canvas.on('selection:created', showDuplicateButton);
 canvas.on('selection:updated', showDuplicateButton);
-
-// Masquer le bouton "+" quand la sélection est retirée
 canvas.on('selection:cleared', hideDuplicateButton);
+
+// Suppression via la touche "Delete"
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Delete') {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            canvas.remove(activeObject);
+            canvas.renderAll();
+        }
+    }
+});
 
 // Activer le pinceau
 document.getElementById('brush').addEventListener('click', () => {
-    canvas.isDrawingMode = true; // Activer le mode dessin
-    canvas.selection = false;    // Désactiver la sélection d'objets pendant le dessin
+    canvas.isDrawingMode = true;
+    canvas.selection = false;
+    canvas.freeDrawingBrush.color = document.querySelector(".colors .selected").style.backgroundColor || "#000000";
 });
 
-// Activer la gomme (simuler la gomme en dessinant avec la couleur du fond)
+// Activer la gomme
 document.getElementById('eraser').addEventListener('click', () => {
     canvas.isDrawingMode = true;
-    canvas.freeDrawingBrush.color = "white"; // Utiliser la couleur blanche comme gomme
+    canvas.freeDrawingBrush.color = "white";
 });
 
-// Désactiver le pinceau et activer la sélection d'objets après avoir dessiné
+// Désactiver le pinceau après avoir dessiné
 canvas.on('mouse:up', function() {
-    canvas.isDrawingMode = false; // Désactiver le mode dessin une fois que la souris est relâchée
-    canvas.selection = true;      // Réactiver la sélection des objets
+    canvas.isDrawingMode = false;
+    canvas.selection = true;
 });
-
-// Ajouter gestionnaire d'événements pour chaque forme
-document.getElementById('rectangle').addEventListener('click', () => addShape('rectangle'));
-document.getElementById('circle').addEventListener('click', () => addShape('circle'));
-document.getElementById('triangle').addEventListener('click', () => addShape('triangle'));
-
-// Fonction pour dessiner des formes
-function addShape(type) {
-    let shape;
-    const fillColor = fillColorCheckbox && fillColorCheckbox.checked ? canvas.freeDrawingBrush.color : 'transparent';
-
-    if (type === 'rectangle') {
-        shape = new fabric.Rect({
-            width: 100,
-            height: 100,
-            left: 150,
-            top: 100,
-            fill: fillColor,
-            stroke: canvas.freeDrawingBrush.color,
-            strokeWidth: 2
-        });
-    } else if (type === 'circle') {
-        shape = new fabric.Circle({
-            radius: 50,
-            left: 150,
-            top: 100,
-            fill: fillColor,
-            stroke: canvas.freeDrawingBrush.color,
-            strokeWidth: 2
-        });
-    } else if (type === 'triangle') {
-        shape = new fabric.Triangle({
-            width: 100,
-            height: 100,
-            left: 150,
-            top: 100,
-            fill: fillColor,
-            stroke: canvas.freeDrawingBrush.color,
-            strokeWidth: 2
-        });
-    }
-
-    shape.set({ selectable: true }); // Rendre la forme déplaçable et redimensionnable
-    canvas.add(shape);
-    canvas.renderAll();
-    canvas.isDrawingMode = false;  // Désactiver le mode dessin après avoir ajouté une forme
-}
 
 // Ajuster la taille du pinceau/gomme
 const sizeSlider = document.querySelector("#size-slider");
 sizeSlider.addEventListener('change', () => {
     canvas.freeDrawingBrush.width = parseInt(sizeSlider.value);
-});
-
-// Gestion des couleurs pour le pinceau
-const colorBtns = document.querySelectorAll(".colors .option");
-colorBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelector(".colors .selected").classList.remove("selected");
-        btn.classList.add("selected");
-        const selectedColor = window.getComputedStyle(btn).getPropertyValue("background-color");
-        canvas.freeDrawingBrush.color = selectedColor;
-    });
-});
-
-// Sélecteur de couleur personnalisé
-const colorPicker = document.querySelector("#color-picker");
-colorPicker.addEventListener("change", () => {
-    canvas.freeDrawingBrush.color = colorPicker.value;
-});
-
-// Effacer le canevas
-const clearCanvas = document.querySelector(".clear-canvas");
-clearCanvas.addEventListener("click", () => {
-    canvas.clear(); // Effacer tout le canevas
-    canvas.backgroundColor = 'white'; // Réinitialiser l'arrière-plan en blanc
-    canvas.renderAll();
 });
 
 // Sauvegarder le dessin en tant qu'image
@@ -364,19 +336,25 @@ uploadImageInput.addEventListener("change", (e) => {
     reader.readAsDataURL(file);
 });
 
-// Supprimer l'objet sélectionné en appuyant sur la touche "Supprimer" du clavier
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Delete') { // Ne plus détecter la touche "Backspace"
-        const activeObject = canvas.getActiveObject(); // Récupérer l'objet sélectionné
-        if (activeObject) {
-            canvas.remove(activeObject); // Supprimer l'objet du canevas
-            toolbar.style.display = 'none'; // Cacher la barre d'outils après suppression
-            canvas.renderAll(); // Re-rendre le canevas après la suppression
-        }
-    }
+// Gestion des couleurs pour le pinceau
+const colorBtns = document.querySelectorAll(".colors .option");
+colorBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelector(".colors .selected").classList.remove("selected");
+        btn.classList.add("selected");
+        const selectedColor = window.getComputedStyle(btn).getPropertyValue("background-color");
+        canvas.freeDrawingBrush.color = selectedColor;
+    });
 });
 
-// Afficher la calculatrice sur le canevas
+// Sélecteur de couleur personnalisé
+const colorPicker = document.querySelector("#color-picker");
+colorPicker.addEventListener("change", () => {
+    canvas.freeDrawingBrush.color = colorPicker.value;
+    document.querySelector(".colors .selected").classList.remove("selected");
+    colorPicker.parentElement.classList.add("selected");
+});
+// Afficher la calculatrice
 const showCalculatorBtn = document.querySelector("#show-calculator");
 const calculatorCanvas = document.querySelector("#calculator-canvas");
 const canvasCalcDisplay = document.querySelector("#canvas-calc-display");
@@ -385,19 +363,18 @@ const closeCanvasCalculatorBtn = document.querySelector("#close-canvas-calculato
 
 showCalculatorBtn.addEventListener("click", () => {
     calculatorCanvas.style.display = 'block';
-    calculatorCanvas.style.zIndex = 9999; // S'assurer que la calculatrice est au-dessus des autres éléments
+    calculatorCanvas.style.zIndex = 9999;
 });
 
 // Fermer la calculatrice
 closeCanvasCalculatorBtn.addEventListener("click", () => {
-    calculatorCanvas.style.display = 'none'; // Fermer la calculatrice
+    calculatorCanvas.style.display = 'none';
 });
 
 // Gestion des boutons de la calculatrice
 canvasCalcButtons.forEach(button => {
     button.addEventListener("click", () => {
         const value = button.textContent;
-
         if (value === "C") {
             canvasCalcDisplay.value = "";
         } else if (value === "=") {
@@ -410,4 +387,108 @@ canvasCalcButtons.forEach(button => {
             canvasCalcDisplay.value += value;
         }
     });
+});
+
+// Fonction pour masquer les outils de texte lorsque l'objet n'est pas sélectionné
+canvas.on('selection:cleared', () => {
+    const toolbar = document.querySelector('#text-toolbar');
+    if (toolbar) {
+        toolbar.style.display = 'none';
+    }
+});
+
+// Activer la sélection des objets après le dessin
+canvas.on('mouse:up', () => {
+    canvas.isDrawingMode = false;
+    canvas.selection = true;
+});
+
+// Mise à jour des propriétés du texte à partir de la barre d'outils
+document.querySelector('#text-size-input').addEventListener('input', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontSize', parseInt(e.target.value));
+        canvas.renderAll();
+    }
+});
+
+document.querySelector('#text-color-input').addEventListener('input', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fill', e.target.value);
+        canvas.renderAll();
+    }
+});
+
+document.querySelector('#text-font-family').addEventListener('change', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontFamily', e.target.value);
+        canvas.renderAll();
+    }
+});
+
+document.querySelector('#text-font-weight').addEventListener('change', (e) => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontWeight', e.target.value);
+        canvas.renderAll();
+    }
+});
+
+// Gestion de la suppression des objets avec la touche "Delete"
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Delete') {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            canvas.remove(activeObject);
+            canvas.renderAll();
+        }
+    }
+});
+
+
+// Affichage du bouton "+" lorsqu'un objet est sélectionné
+canvas.on('selection:created', () => {
+    const duplicateBtn = document.querySelector(".duplicate-btn");
+    duplicateBtn.style.display = 'block';
+});
+
+canvas.on('selection:cleared', () => {
+    const duplicateBtn = document.querySelector(".duplicate-btn");
+    duplicateBtn.style.display = 'none';
+});
+
+// Sauvegarder le canevas en tant qu'image
+const saveImgBtn = document.querySelector(".save-img");
+saveImgBtn.addEventListener("click", () => {
+    const dataURL = canvas.toDataURL({
+        format: 'png',
+        multiplier: 2
+    });
+    const link = document.createElement("a");
+    link.href = dataURL;
+    link.download = `canvas_${Date.now()}.png`;
+    link.click();
+});
+
+
+// Activer et désactiver le pinceau
+document.getElementById('brush').addEventListener('click', () => {
+    canvas.isDrawingMode = true;
+    canvas.selection = false;
+    canvas.freeDrawingBrush.color = document.querySelector(".colors .selected").style.backgroundColor || "#000000";
+});
+
+// Activer la gomme en utilisant le pinceau avec la couleur blanche
+document.getElementById('eraser').addEventListener('click', () => {
+    canvas.isDrawingMode = true;
+    canvas.freeDrawingBrush.color = "white";
+});
+
+
+// Sélectionner la case à cocher pour le remplissage des formes
+const fillColorCheckbox = document.querySelector("#fill-color");
+fillColorCheckbox.addEventListener('change', () => {
+    canvas.renderAll();
 });

@@ -21,7 +21,7 @@ function addRulerShape() {
         originY: 'center'
     });
 
-    const rulerText = new fabric.Text('0 cm', {
+    const rulerText = new fabric.Text('0 dm', {
         fontSize: 14,
         fill: 'black',
         selectable: false,
@@ -56,7 +56,7 @@ function updateRulerShapeLength(ruler, rulerText) {
         const lengthInMeters = (lengthInCm / 100).toFixed(2);
         rulerText.set({ text: `${lengthInMeters} m` });
     } else {
-        rulerText.set({ text: `${lengthInCm.toFixed(2)} cm` });
+        rulerText.set({ text: `${lengthInCm.toFixed(2)} dm` });
     }
 
     // Positionner le texte au milieu de la règle
@@ -107,16 +107,16 @@ function updateShapeMeasurements(shape, measurementText) {
     if (shape.type === 'rect') {
         const width = (shape.getScaledWidth() / pixelsPerCm).toFixed(2);
         const height = (shape.getScaledHeight() / pixelsPerCm).toFixed(2);
-        measurements = `L: ${width} cm, H: ${height} cm`;
+        measurements = `L: ${width} dm, H: ${height} dm`;
     } else if (shape.type === 'circle') {
         const radius = (shape.radius * shape.scaleX / pixelsPerCm).toFixed(2);
         const diameter = (2 * shape.radius * shape.scaleX / pixelsPerCm).toFixed(2);
-        measurements = `R: ${radius} cm, D: ${diameter} cm`;
+        measurements = `R: ${radius} dm, D: ${diameter} dm`;
     } else if (shape.type === 'triangle') {
         const a = (shape.width * shape.scaleX / pixelsPerCm).toFixed(2);
         const b = (shape.height * shape.scaleY / pixelsPerCm).toFixed(2);
         const c = (Math.sqrt(Math.pow(shape.width, 2) + Math.pow(shape.height, 2)) * shape.scaleX / pixelsPerCm).toFixed(2);
-        measurements = `Côtés: A: ${a} cm, B: ${b} cm, C: ${c} cm`;
+        measurements = `Côtés: A: ${a} dm, B: ${b} dm, C: ${c} dm`;
     }
     measurementText.set({
         text: measurements,
@@ -423,7 +423,7 @@ function addRulerShape() {
         originY: 'center'
     });
 
-    const rulerText = new fabric.Text('0 cm', {
+    const rulerText = new fabric.Text('0 dm', {
         fontSize: 14,
         fill: 'black',
         left: ruler.left,
@@ -455,7 +455,7 @@ function updateRulerShapeLength(ruler, rulerText) {
         const lengthInMeters = (lengthInCm / 100).toFixed(2);
         rulerText.set({ text: `${lengthInMeters} m` });
     } else {
-        rulerText.set({ text: `${lengthInCm.toFixed(2)} cm` });
+        rulerText.set({ text: `${lengthInCm.toFixed(2)} dm` });
     }
 
     // Positionner le texte au milieu de la règle

@@ -540,3 +540,124 @@ document.getElementById('add-table-btn').addEventListener('click', () => {
         alert("Veuillez entrer des valeurs valides pour les lignes et les colonnes.");
     }
 });
+
+
+
+
+// Références aux éléments du menu de propriétés
+const textPropertiesMenu = document.getElementById('text-properties-menu');
+const fontFamilySelect = document.getElementById('font-family');
+const fontSizeInput = document.getElementById('font-size');
+const fontWeightSelect = document.getElementById('font-weight');
+const textColorInput = document.getElementById('text-color');
+
+// Afficher le menu des propriétés lorsque le texte est sélectionné
+canvas.on('selection:created', (e) => {
+    if (e.target && e.target.type === 'i-text') {
+        textPropertiesMenu.style.display = 'flex';
+        updateTextPropertiesMenu(e.target);
+    } else {
+        textPropertiesMenu.style.display = 'block';
+    }
+});
+
+// Masquer le menu des propriétés lorsque la sélection est effacée
+canvas.on('selection:cleared', () => {
+    textPropertiesMenu.style.display = 'none';
+});
+
+// Mettre à jour les propriétés du menu en fonction de l'objet sélectionné
+function updateTextPropertiesMenu(text) {
+    fontFamilySelect.value = text.fontFamily || 'Arial';
+    fontSizeInput.value = text.fontSize || 20;
+    fontWeightSelect.value = text.fontWeight || 'normal';
+    textColorInput.value = text.fill || '#000000';
+}
+
+// Appliquer les modifications au texte sélectionné
+fontFamilySelect.addEventListener('change', () => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontFamily', fontFamilySelect.value);
+        canvas.renderAll();
+    }
+});
+
+fontSizeInput.addEventListener('input', () => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontSize', parseInt(fontSizeInput.value, 10));
+        canvas.renderAll();
+    }
+});
+
+fontWeightSelect.addEventListener('change', () => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fontWeight', fontWeightSelect.value);
+        canvas.renderAll();
+    }
+});
+
+textColorInput.addEventListener('input', () => {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'i-text') {
+        activeObject.set('fill', textColorInput.value);
+        canvas.renderAll();
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let historique = [];
+let pileRétablir = [];
+
+// Fonction pour enregistrer l'état actuel du canevas
+function enregistrerÉtat() {
+    historique.push(JSON.stringify(canvas));
+    pileRétablir = []; // Vider la pile de rétablissement après une nouvelle action
+}
+
+// Fonction pour annuler
+function annuler() {
+    if (historique.length > 0) {
+        const dernierÉtat = historique.pop();
+        pileRétablir.push(JSON.stringify(canvas));
+        canvas.loadFromJSON(dernierÉtat, canvas.renderAll.bind(canvas));
+    }
+}
+
+// Fonction pour rétablir
+function rétablir() {
+    if (pileRétablir.length > 0) {
+        const prochainÉtat = pileRétablir.pop();
+        historique.push(JSON.stringify(canvas));
+        canvas.loadFromJSON(prochainÉtat, canvas.renderAll.bind(canvas));
+    }
+}
+
+
+
+
+
+
+
+
+// Enregistrer l'état à chaque ajout ou suppression d'objet
+canvas.on('object:added', enregistrerÉtat);
+canvas.on('object:removed', enregistrerÉtat);
+
+// Ajouter les événements pour les boutons "Annuler" et "Rétablir"
+document.getElementById('annuler-btn').addEventListener('click', annuler);
+document.getElementById('rétablir-btn').addEventListener('click', rétablir);

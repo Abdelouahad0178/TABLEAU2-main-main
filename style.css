@@ -264,8 +264,8 @@ section {
 }
 
 #add-table-btn {
-    padding: 20px;
-    font-size: 1.2rem;
+    padding: 15px;
+    font-size: 1rem;
     background: #4A98F7;
     color: white;
     border: none;
@@ -276,4 +276,45 @@ section {
 
 #add-table-btn:hover {
     background: #6C757D;
+}
+#annuler-btn, #rétablir-btn {
+    padding: 10px;
+    background-color: #E74C3C;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 1rem;
+    transition: background 0.3s;
+}
+
+#annuler-btn:hover, #rétablir-btn:hover {
+    background-color: #C0392B;
+}
+
+.text-properties {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    z-index: 1000;
+}
+
+.text-properties label {
+    font-size: 0.9rem;
+    margin-right: 5px;
+}
+
+.text-properties input,
+.text-properties select {
+    padding: 5px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
 }
